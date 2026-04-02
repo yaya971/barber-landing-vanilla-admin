@@ -1,21 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Calendar, Clock, Scissors, User, X, CheckCircle, ChevronRight, Check } from "lucide-react";
+import { Calendar, Clock, Scissors, User, X, CheckCircle, ChevronRight, Check, Star } from "lucide-react";
 import Image from "next/image";
-
-// Mock Data
-const SERVICES = [
-  { id: 1, name: "Coupe Executive", price: "€35", duration: "30 min", description: "Coupe sur-mesure, lavage et finition premium." },
-  { id: 2, name: "Rasage Serviette Chaude", price: "€30", duration: "30 min", description: "Rasage classique à l'ancienne." },
-  { id: 3, name: "Sculpture de Barbe", price: "€25", duration: "20 min", description: "Taille experte et huile nourrissante." },
-  { id: 4, name: "L'Expérience Lisboeta", price: "€60", duration: "60 min", description: "Le package complet: Coupe + Rasage." },
-];
-
-const BARBERS = [
-  { id: 1, name: "Tiago Silva", role: "Master Barber", image: "https://i.pravatar.cc/150?u=tiago" },
-  { id: 2, name: "João Santos", role: "Senior Barber", image: "https://i.pravatar.cc/150?u=joao" },
-];
+import { getPublicData, bookAppointment } from "@/lib/actions";
 
 // Generate next 5 days
 const getNextDays = () => {
@@ -34,6 +22,12 @@ export default function Home() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [bookingStep, setBookingStep] = useState(1);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Dynamic Data from Backend
+  const [services, setServices] = useState<any[]>([]);
+  const [barbers, setBarbers] = useState<any[]>([]);
+  const [reviews, setReviews] = useState<any[]>([]);
 
   // Booking State
   const [selectedService, setSelectedService] = useState<any>(null);
@@ -45,6 +39,15 @@ export default function Home() {
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 50);
     window.addEventListener("scroll", handleScroll);
+    
+    // Fetch Data on mount
+    getPublicData().then(data => {
+      setBarbers(data.barbers);
+      setServices(data.services);
+      setReviews(data.reviews);
+      setIsLoading(false);
+    });
+
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
@@ -65,10 +68,34 @@ export default function Home() {
     }, 300);
   };
 
-  const submitBooking = (e: React.FormEvent) => {
+  const submitBooking = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!selectedDate || !selectedTime) return;
+
+    // Simulate datetime combination
+    const startTime = new Date(selectedDate);
+    const [hours, minutes] = selectedTime.split(':');
+    startTime.setHours(parseInt(hours), parseInt(minutes), 0);
+    
+    const endTime = new Date(startTime);
+    endTime.setMinutes(endTime.getMinutes() + (selectedService.duration_minutes || 30));
+
+    await bookAppointment({
+      ...formData,
+      barberId: selectedBarber.id,
+      serviceId: selectedService.id,
+      startTime: startTime.toISOString(),
+      endTime: endTime.toISOString()
+    });
+
     setBookingStep(5); // Success step
   };
+
+  if (isLoading) {
+    return <div className="min-h-screen bg-[#0f1012] flex items-center justify-center p-4">
+      <div className="w-10 h-10 border-4 border-[#d4af37] border-t-transparent rounded-full animate-spin"></div>
+    </div>;
+  }
 
   return (
     <div className="min-h-screen font-sans selection:bg-[#d4af37] selection:text-black">
@@ -79,8 +106,8 @@ export default function Home() {
             O Barbeiro <span className="text-[#d4af37] italic normal-case">Lisboeta</span>
           </a>
           <div className="hidden md:flex items-center space-x-10 text-sm font-medium uppercase tracking-[2px]">
-            <a href="#services" className="hover:text-white transition-colors relative after:absolute after:-bottom-1 after:left-0 after:w-0 hover:after:w-full after:h-[1px] auto after:bg-[#d4af37] after:transition-all">Services</a>
-            <a href="#about" className="hover:text-white transition-colors relative after:absolute after:-bottom-1 after:left-0 after:w-0 hover:after:w-full after:h-[1px] auto after:bg-[#d4af37] after:transition-all">L'Artisanat</a>
+            <a href="#services" className="hover:text-white transition-colors">Services</a>
+            <a href="#reviews" className="hover:text-white transition-colors">Avis</a>
             <button onClick={openModal} className="border border-[#d4af37] text-[#d4af37] px-6 py-2 rounded-sm hover:bg-[#d4af37] hover:text-[#0f1012] transition-colors">
               Réserver
             </button>
@@ -110,14 +137,9 @@ export default function Home() {
             <p className="text-lg text-gray-400 mb-10 max-w-lg leading-relaxed">
               L'héritage classique portugais rencontre le luxe moderne. Élevez votre style au cœur de notre magnifique ville.
             </p>
-            <div className="flex flex-col sm:flex-row gap-4">
-              <button onClick={openModal} className="bg-[#d4af37] text-[#0f1012] px-8 py-4 font-medium tracking-wide uppercase text-sm hover:-translate-y-1 transition-transform border border-[#d4af37] hover:shadow-[0_10px_20px_rgba(212,175,55,0.2)]">
-                Prendre Rendez-vous
-              </button>
-              <a href="#services" className="bg-white/5 backdrop-blur-sm border border-white/10 px-8 py-4 font-medium tracking-wide uppercase text-sm hover:-translate-y-1 transition-all hover:bg-white/10">
-                Découvrir
-              </a>
-            </div>
+            <button onClick={openModal} className="bg-[#d4af37] text-[#0f1012] px-8 py-4 font-medium tracking-wide uppercase text-sm hover:-translate-y-1 transition-transform border border-[#d4af37] hover:shadow-[0_10px_20px_rgba(212,175,55,0.2)]">
+              Prendre Rendez-vous
+            </button>
           </div>
         </div>
       </section>
@@ -128,20 +150,51 @@ export default function Home() {
           <div className="text-center mb-20 md:mb-24">
             <h2 className="font-serif text-4xl md:text-5xl font-semibold mb-6">Nos Services</h2>
             <div className="w-16 h-[2px] bg-[#d4af37] mx-auto mb-6"></div>
-            <p className="text-gray-400 text-lg">La précision magistrale dans chaque coupe et rasage.</p>
           </div>
           
           <div className="grid md:grid-cols-2 gap-8">
-            {SERVICES.map((service, idx) => (
-              <div key={service.id} className={`service-card bg-[#18191c] border ${idx === 3 ? 'border-[#d4af37]/30 bg-gradient-to-br from-[#18191c] to-[#1a1712]' : 'border-white/5'} p-10 rounded-sm relative group`}>
-                {idx === 3 && (
+            {services.map((service, idx) => (
+              <div key={service.id} className={`service-card bg-[#18191c] border ${service.is_signature ? 'border-[#d4af37]/30 bg-gradient-to-br from-[#18191c] to-[#1a1712]' : 'border-white/5'} p-10 rounded-sm relative group`}>
+                {service.is_signature && (
                   <span className="absolute top-6 -right-10 bg-[#d4af37] text-black text-[10px] uppercase font-bold tracking-[2px] px-10 py-1 rotate-45 shadow-lg">La Signature</span>
                 )}
                 <div className="flex justify-between items-baseline mb-4 pb-4 border-b border-white/5 dashed-border">
                   <h3 className="font-serif text-2xl group-hover:text-[#d4af37] transition-colors">{service.name}</h3>
-                  <span className="font-serif text-2xl text-[#d4af37]">{service.price}</span>
+                  <span className="font-serif text-2xl text-[#d4af37]">€{service.price}</span>
                 </div>
                 <p className="text-gray-400 leading-relaxed">{service.description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Reviews Section NEW */}
+      <section id="reviews" className="py-32 px-8 bg-[#0a0a0c]">
+        <div className="max-w-[1200px] mx-auto">
+          <div className="text-center mb-20 md:mb-24">
+            <h2 className="font-serif text-4xl md:text-5xl font-semibold mb-6">L'Expérience Clients</h2>
+            <div className="w-16 h-[2px] bg-[#d4af37] mx-auto mb-6"></div>
+          </div>
+          
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {reviews.map((rev) => (
+              <div key={rev.id} className="bg-[#18191c] border border-white/5 p-8 rounded-sm">
+                <div className="flex text-[#d4af37] mb-4">
+                  {[...Array(5)].map((_, i) => (
+                     <Star key={i} className={`w-4 h-4 ${i < rev.rating ? "fill-current" : "text-gray-600"}`} />
+                  ))}
+                </div>
+                <p className="text-gray-300 italic mb-6">"{rev.comment}"</p>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-[#0f1012] rounded-full flex items-center justify-center border border-white/10 font-serif font-bold text-[#d4af37]">
+                    {rev.client_name.charAt(0)}
+                  </div>
+                  <div>
+                    <h4 className="font-medium text-white">{rev.client_name}</h4>
+                    <p className="text-xs text-gray-500 uppercase tracking-widest">Client Vérifié</p>
+                  </div>
+                </div>
               </div>
             ))}
           </div>
@@ -160,8 +213,6 @@ export default function Home() {
             {/* Modal Header */}
             <div className="p-8 pb-4 shrink-0 text-center border-b border-white/5">
               <h2 className="font-serif text-3xl mb-2 text-white">Réserver une session</h2>
-              
-              {/* Progress Steps */}
               {bookingStep < 5 && (
                 <div className="flex justify-center items-center mt-6 space-x-2 sm:space-x-4">
                   {[1, 2, 3, 4].map(step => (
@@ -178,19 +229,18 @@ export default function Home() {
 
             {/* Modal Body - Scrollable */}
             <div className="p-6 sm:p-8 overflow-y-auto flex-1 custom-scrollbar">
-              {/* Step 1: Services */}
               {bookingStep === 1 && (
                 <div className="space-y-4 animate-in fade-in zoom-in-95 duration-200">
                   <h3 className="text-lg text-gray-300 uppercase tracking-widest text-center mb-6">Choisissez le service</h3>
                   <div className="grid gap-4">
-                    {SERVICES.map(s => (
+                    {services.map(s => (
                       <div key={s.id} onClick={() => setSelectedService(s)} className={`cursor-pointer border p-4 rounded flex justify-between items-center transition-all ${selectedService?.id === s.id ? 'border-[#d4af37] bg-[#d4af37]/5' : 'border-white/10 hover:border-white/30'}`}>
                         <div>
                           <h4 className="font-serif text-xl">{s.name}</h4>
-                          <p className="text-sm text-gray-500 mt-1 flex items-center"><Clock className="w-3 h-3 mr-1"/> {s.duration}</p>
+                          <p className="text-sm text-gray-500 mt-1 flex items-center"><Clock className="w-3 h-3 mr-1"/> {s.duration_minutes} min</p>
                         </div>
                         <div className="text-right">
-                          <span className="text-[#d4af37] font-semibold text-lg">{s.price}</span>
+                          <span className="text-[#d4af37] font-semibold text-lg">€{s.price}</span>
                           {selectedService?.id === s.id && <CheckCircle className="w-5 h-5 text-[#d4af37] inline ml-4" />}
                         </div>
                       </div>
@@ -199,14 +249,13 @@ export default function Home() {
                 </div>
               )}
 
-              {/* Step 2: Barbers */}
               {bookingStep === 2 && (
                 <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
                   <h3 className="text-lg text-gray-300 uppercase tracking-widest text-center mb-6">Choisissez le barbier</h3>
                   <div className="grid sm:grid-cols-2 gap-4">
-                    {BARBERS.map(b => (
+                    {barbers.map(b => (
                       <div key={b.id} onClick={() => setSelectedBarber(b)} className={`cursor-pointer border p-6 rounded flex flex-col items-center text-center transition-all ${selectedBarber?.id === b.id ? 'border-[#d4af37] bg-[#d4af37]/5' : 'border-white/10 hover:border-white/30'}`}>
-                        <img src={b.image} alt={b.name} className="w-20 h-20 rounded-full mb-4 object-cover border-2 border-transparent group-hover:border-[#d4af37]" />
+                        <img src={b.avatar_url || 'https://i.pravatar.cc/150'} alt={b.name} className="w-20 h-20 rounded-full mb-4 object-cover border-2 border-transparent group-hover:border-[#d4af37]" />
                         <h4 className="font-serif text-xl">{b.name}</h4>
                         <p className="text-xs text-[#d4af37] uppercase tracking-widest mt-1">{b.role}</p>
                       </div>
@@ -215,12 +264,9 @@ export default function Home() {
                 </div>
               )}
 
-              {/* Step 3: Date & Time */}
               {bookingStep === 3 && (
                 <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
                   <h3 className="text-lg text-gray-300 uppercase tracking-widest text-center mb-6">Date et Créneau</h3>
-                  
-                  {/* Date Selection */}
                   <div>
                     <p className="text-sm text-gray-400 mb-3 uppercase tracking-wider font-semibold">Jours Disponibles</p>
                     <div className="flex overflow-x-auto pb-4 gap-3 no-scrollbar">
@@ -234,7 +280,6 @@ export default function Home() {
                     </div>
                   </div>
 
-                  {/* Time Selection */}
                   {selectedDate && (
                     <div className=" animate-in fade-in duration-300">
                       <p className="text-sm text-gray-400 mb-3 uppercase tracking-wider font-semibold">Heures pour {selectedBarber?.name}</p>
@@ -250,12 +295,9 @@ export default function Home() {
                 </div>
               )}
 
-              {/* Step 4: Contact Details */}
               {bookingStep === 4 && (
                 <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
                   <h3 className="text-lg text-gray-300 uppercase tracking-widest text-center mb-6">Vos Coordonnées</h3>
-                  
-                  {/* Summary Card */}
                   <div className="bg-black/30 p-4 border border-white/5 rounded-sm flex items-center justify-between mb-6">
                     <div>
                       <p className="font-serif text-lg">{selectedService.name}</p>
@@ -264,7 +306,7 @@ export default function Home() {
                         <Calendar className="w-3 h-3" /> {selectedDate?.toLocaleDateString('fr-FR')} à {selectedTime}
                       </p>
                     </div>
-                    <span className="text-[#d4af37] font-semibold text-xl">{selectedService.price}</span>
+                    <span className="text-[#d4af37] font-semibold text-xl">€{selectedService.price}</span>
                   </div>
 
                   <form id="details-form" onSubmit={submitBooking} className="space-y-4">
@@ -286,7 +328,6 @@ export default function Home() {
                 </div>
               )}
 
-              {/* Step 5: Success */}
               {bookingStep === 5 && (
                 <div className="py-12 flex flex-col items-center justify-center text-center animate-in zoom-in-50 duration-500">
                   <div className="w-20 h-20 bg-[#d4af37]/10 rounded-full flex items-center justify-center mb-6">
@@ -294,43 +335,24 @@ export default function Home() {
                   </div>
                   <h3 className="font-serif text-3xl mb-4 italic text-[#d4af37]">Réservation Confirmée !</h3>
                   <p className="text-gray-400 max-w-md">
-                    Merci {formData.name}, votre rendez-vous avec {selectedBarber?.name} le {selectedDate?.toLocaleDateString()} à {selectedTime} a bien été enregistré.
-                    <br/><br/>Vous allez recevoir un message de confirmation.
+                    Merci {formData.name}, votre rendez-vous avec {selectedBarber?.name} le {selectedDate?.toLocaleDateString()} a bien été enregistré en base de données.
+                    <br/><br/>Vous allez recevoir un SMS de confirmation.
                   </p>
                   <button onClick={closeModal} className="mt-8 bg-white/10 px-8 py-3 uppercase text-sm tracking-widest hover:bg-white/20 transition-colors">Retour à l'accueil</button>
                 </div>
               )}
             </div>
 
-            {/* Modal Footer */}
             {bookingStep < 5 && (
               <div className="p-6 border-t border-white/5 bg-black/20 shrink-0 flex justify-between items-center">
                 {bookingStep > 1 ? (
-                  <button onClick={() => setBookingStep(bookingStep - 1)} className="text-gray-400 hover:text-white uppercase text-xs tracking-widest font-semibold transition-colors">
-                    Retour
-                  </button>
+                  <button onClick={() => setBookingStep(bookingStep - 1)} className="text-gray-400 hover:text-white uppercase text-xs tracking-widest font-semibold transition-colors">Retour</button>
                 ) : <div></div>}
                 
-                {bookingStep === 1 && (
-                  <button onClick={() => setBookingStep(2)} disabled={!selectedService} className="bg-[#d4af37] disabled:opacity-50 text-black px-6 py-3 font-semibold uppercase text-xs tracking-widest flex items-center hover:bg-[#f3d87b] transition-colors">
-                    Suivant <ChevronRight className="w-4 h-4 ml-2" />
-                  </button>
-                )}
-                {bookingStep === 2 && (
-                  <button onClick={() => setBookingStep(3)} disabled={!selectedBarber} className="bg-[#d4af37] disabled:opacity-50 text-black px-6 py-3 font-semibold uppercase text-xs tracking-widest flex items-center hover:bg-[#f3d87b] transition-colors">
-                    Suivant <ChevronRight className="w-4 h-4 ml-2" />
-                  </button>
-                )}
-                {bookingStep === 3 && (
-                  <button onClick={() => setBookingStep(4)} disabled={!selectedDate || !selectedTime} className="bg-[#d4af37] disabled:opacity-50 text-black px-6 py-3 font-semibold uppercase text-xs tracking-widest flex items-center hover:bg-[#f3d87b] transition-colors">
-                    Vos Coordonnées <ChevronRight className="w-4 h-4 ml-2" />
-                  </button>
-                )}
-                {bookingStep === 4 && (
-                  <button type="submit" form="details-form" className="bg-[#d4af37] text-black px-8 py-3 font-bold uppercase text-xs tracking-widest flex items-center hover:bg-[#f3d87b] transition-colors">
-                    Confirmer la réservation
-                  </button>
-                )}
+                {bookingStep === 1 && <button onClick={() => setBookingStep(2)} disabled={!selectedService} className="bg-[#d4af37] disabled:opacity-50 text-black px-6 py-3 font-semibold uppercase text-xs tracking-widest flex items-center hover:bg-[#f3d87b] transition-colors">Suivant <ChevronRight className="w-4 h-4 ml-2" /></button>}
+                {bookingStep === 2 && <button onClick={() => setBookingStep(3)} disabled={!selectedBarber} className="bg-[#d4af37] disabled:opacity-50 text-black px-6 py-3 font-semibold uppercase text-xs tracking-widest flex items-center hover:bg-[#f3d87b] transition-colors">Suivant <ChevronRight className="w-4 h-4 ml-2" /></button>}
+                {bookingStep === 3 && <button onClick={() => setBookingStep(4)} disabled={!selectedDate || !selectedTime} className="bg-[#d4af37] disabled:opacity-50 text-black px-6 py-3 font-semibold uppercase text-xs tracking-widest flex items-center hover:bg-[#f3d87b] transition-colors">Vos Coordonnées <ChevronRight className="w-4 h-4 ml-2" /></button>}
+                {bookingStep === 4 && <button type="submit" form="details-form" className="bg-[#d4af37] text-black px-8 py-3 font-bold uppercase text-xs tracking-widest flex items-center hover:bg-[#f3d87b] transition-colors">Confirmer</button>}
               </div>
             )}
           </div>
