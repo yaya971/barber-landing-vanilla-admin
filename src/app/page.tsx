@@ -1,20 +1,27 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Calendar, Clock, Scissors, User, X, CheckCircle, ChevronRight, Check, Star } from "lucide-react";
+import { Calendar, Clock, User, X, CheckCircle, ChevronRight, Check, Star } from "lucide-react";
 import Image from "next/image";
-import { getPublicData, bookAppointment } from "@/lib/actions";
 
-// Generate next 5 days
-const getNextDays = () => {
-  const days = [];
-  for (let i = 1; i <= 5; i++) {
-    const d = new Date();
-    d.setDate(d.getDate() + i);
-    days.push(d);
-  }
-  return days;
-};
+// MOCK DATA (Pour une présentation fluide et sans base de données)
+const MOCK_SERVICES = [
+  { id: "1", name: "Coupe Executive", price: 35, duration_minutes: 30, description: "Coupe sur-mesure, lavage et finition premium." },
+  { id: "2", name: "Rasage Serviette Chaude", price: 30, duration_minutes: 30, description: "Rasage classique à l'ancienne." },
+  { id: "3", name: "Sculpture de Barbe", price: 25, duration_minutes: 20, description: "Taille experte et huile nourrissante." },
+  { id: "4", name: "L'Expérience Lisboeta", price: 60, duration_minutes: 60, description: "Le package complet: Coupe + Rasage.", is_signature: true },
+];
+
+const MOCK_BARBERS = [
+  { id: "1", name: "Tiago Silva", role: "Master Barber", avatar_url: "https://i.pravatar.cc/150?u=tiago" },
+  { id: "2", name: "João Santos", role: "Senior Barber", avatar_url: "https://i.pravatar.cc/150?u=joao" },
+];
+
+const MOCK_REVIEWS = [
+  { id: "1", client_name: "Alexandre Dupont", rating: 5, comment: "L'expérience Lisboeta est incroyable. Tiago a des mains en or !" },
+  { id: "2", client_name: "Mathieu Ferreira", rating: 5, comment: "Meilleur salon de la ville, prestation haut de gamme, le sens du détail est là." },
+  { id: "3", client_name: "Vincent Garcia", rating: 4, comment: "Coupe parfaite. J'ai eu un peu de mal à me garer, mais le service vaut le détour." }
+];
 
 const TIME_SLOTS = ["10:00", "11:00", "13:00", "14:30", "16:00", "18:00"];
 
@@ -22,12 +29,12 @@ export default function Home() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [bookingStep, setBookingStep] = useState(1);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false); // Pas de temps de chargement pour la demo
 
-  // Dynamic Data from Backend
-  const [services, setServices] = useState<any[]>([]);
-  const [barbers, setBarbers] = useState<any[]>([]);
-  const [reviews, setReviews] = useState<any[]>([]);
+  // Dynamic Data
+  const services = MOCK_SERVICES;
+  const barbers = MOCK_BARBERS;
+  const reviews = MOCK_REVIEWS;
 
   // Booking State
   const [selectedService, setSelectedService] = useState<any>(null);
@@ -39,17 +46,18 @@ export default function Home() {
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 50);
     window.addEventListener("scroll", handleScroll);
-    
-    // Fetch Data on mount
-    getPublicData().then(data => {
-      setBarbers(data.barbers);
-      setServices(data.services);
-      setReviews(data.reviews);
-      setIsLoading(false);
-    });
-
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
+
+  const getNextDays = () => {
+    const days = [];
+    for (let i = 1; i <= 5; i++) {
+      const d = new Date();
+      d.setDate(d.getDate() + i);
+      days.push(d);
+    }
+    return days;
+  };
 
   const openModal = () => {
     setIsModalOpen(true);
@@ -71,31 +79,14 @@ export default function Home() {
   const submitBooking = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedDate || !selectedTime) return;
-
-    // Simulate datetime combination
-    const startTime = new Date(selectedDate);
-    const [hours, minutes] = selectedTime.split(':');
-    startTime.setHours(parseInt(hours), parseInt(minutes), 0);
     
-    const endTime = new Date(startTime);
-    endTime.setMinutes(endTime.getMinutes() + (selectedService.duration_minutes || 30));
-
-    await bookAppointment({
-      ...formData,
-      barberId: selectedBarber.id,
-      serviceId: selectedService.id,
-      startTime: startTime.toISOString(),
-      endTime: endTime.toISOString()
-    });
-
-    setBookingStep(5); // Success step
+    // Simulation d'une réservation (1 sec) pour faire "vrai"
+    setIsLoading(true);
+    setTimeout(() => {
+      setIsLoading(false);
+      setBookingStep(5); // Success step
+    }, 1000);
   };
-
-  if (isLoading) {
-    return <div className="min-h-screen bg-[#0f1012] flex items-center justify-center p-4">
-      <div className="w-10 h-10 border-4 border-[#d4af37] border-t-transparent rounded-full animate-spin"></div>
-    </div>;
-  }
 
   return (
     <div className="min-h-screen font-sans selection:bg-[#d4af37] selection:text-black">
@@ -203,7 +194,7 @@ export default function Home() {
 
       {/* Booking Wizard Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 pb-20 overflow-y-auto">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6 pb-20 overflow-y-auto w-full">
           <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={closeModal}></div>
           <div className="relative bg-[#18191c] border-t-4 border-[#d4af37] w-full max-w-2xl rounded-sm shadow-2xl my-auto flex flex-col max-h-[90vh]">
             <button onClick={closeModal} className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors z-20">
@@ -228,7 +219,7 @@ export default function Home() {
             </div>
 
             {/* Modal Body - Scrollable */}
-            <div className="p-6 sm:p-8 overflow-y-auto flex-1 custom-scrollbar">
+            <div className="p-6 sm:p-8 overflow-y-auto flex-1 custom-scrollbar min-h-[300px]">
               {bookingStep === 1 && (
                 <div className="space-y-4 animate-in fade-in zoom-in-95 duration-200">
                   <h3 className="text-lg text-gray-300 uppercase tracking-widest text-center mb-6">Choisissez le service</h3>
@@ -335,8 +326,8 @@ export default function Home() {
                   </div>
                   <h3 className="font-serif text-3xl mb-4 italic text-[#d4af37]">Réservation Confirmée !</h3>
                   <p className="text-gray-400 max-w-md">
-                    Merci {formData.name}, votre rendez-vous avec {selectedBarber?.name} le {selectedDate?.toLocaleDateString()} a bien été enregistré en base de données.
-                    <br/><br/>Vous allez recevoir un SMS de confirmation.
+                    Merci {formData.name}, votre rendez-vous avec {selectedBarber?.name} le {selectedDate?.toLocaleDateString()} a bien été enregistré.
+                    <br/><br/>(Ceci est une démonstration)
                   </p>
                   <button onClick={closeModal} className="mt-8 bg-white/10 px-8 py-3 uppercase text-sm tracking-widest hover:bg-white/20 transition-colors">Retour à l'accueil</button>
                 </div>
@@ -352,7 +343,9 @@ export default function Home() {
                 {bookingStep === 1 && <button onClick={() => setBookingStep(2)} disabled={!selectedService} className="bg-[#d4af37] disabled:opacity-50 text-black px-6 py-3 font-semibold uppercase text-xs tracking-widest flex items-center hover:bg-[#f3d87b] transition-colors">Suivant <ChevronRight className="w-4 h-4 ml-2" /></button>}
                 {bookingStep === 2 && <button onClick={() => setBookingStep(3)} disabled={!selectedBarber} className="bg-[#d4af37] disabled:opacity-50 text-black px-6 py-3 font-semibold uppercase text-xs tracking-widest flex items-center hover:bg-[#f3d87b] transition-colors">Suivant <ChevronRight className="w-4 h-4 ml-2" /></button>}
                 {bookingStep === 3 && <button onClick={() => setBookingStep(4)} disabled={!selectedDate || !selectedTime} className="bg-[#d4af37] disabled:opacity-50 text-black px-6 py-3 font-semibold uppercase text-xs tracking-widest flex items-center hover:bg-[#f3d87b] transition-colors">Vos Coordonnées <ChevronRight className="w-4 h-4 ml-2" /></button>}
-                {bookingStep === 4 && <button type="submit" form="details-form" className="bg-[#d4af37] text-black px-8 py-3 font-bold uppercase text-xs tracking-widest flex items-center hover:bg-[#f3d87b] transition-colors">Confirmer</button>}
+                {bookingStep === 4 && <button type="submit" form="details-form" disabled={isLoading} className="bg-[#d4af37] disabled:opacity-50 text-black px-8 py-3 font-bold uppercase text-xs tracking-widest flex items-center hover:bg-[#f3d87b] transition-colors">
+                  {isLoading ? 'Chargement...' : 'Confirmer'}
+                </button>}
               </div>
             )}
           </div>
