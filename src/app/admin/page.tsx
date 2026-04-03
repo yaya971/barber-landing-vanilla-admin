@@ -343,7 +343,6 @@ export default function AdminDashboard() {
           )}
 
           {/* ANALYTICS TAB */}
-          {activeTab === "analytics" && ( ... ) /* To avoid large file code duplication I will just output the rest exactly as is in subsequent chunks or the full write */)} 
           {activeTab === "analytics" && (
             <div className="animate-in fade-in duration-300">
               <header className="mb-10">
